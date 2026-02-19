@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lumina Gallery - 艺术画廊</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="/static/js/api.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    animation: {
+                        'float': 'float 8s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        float: { '0%, 100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-20px)' } }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        [x-cloak] { display: none !important; }
+        .glass { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,0.5); }
+        .card-hover:hover { transform: translateY(-4px); box-shadow: 0 20px 40px -15px rgba(124, 58, 237, 0.15); }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen relative overflow-x-hidden selection:bg-purple-200 selection:text-purple-900">
+
+    <div class="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
+        <div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-purple-200/40 blur-[100px] animate-float"></div>
+        <div class="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-blue-200/40 blur-[100px] animate-float" style="animation-delay: 4s"></div>
+    </div>
+
+    <nav class="glass sticky top-0 z-40 transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <a href="index.html" class="flex items-center gap-2 group">
+                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center text-white shadow-lg shadow-purple-500/30 group-hover:scale-105 transition-transform">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    </div>
+                    <span class="font-bold text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-purple-700 to-blue-600">Lumina</span>
+                </a>
+                <div class="hidden md:flex space-x-1">
+                    <a href="index.html" class="px-4 py-2 rounded-lg text-sm font-medium bg-purple-50 text-purple-700">画廊</a>
+                    <a href="generate.html" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-purple-700 hover:bg-slate-50 transition-colors">创作</a>
+                    <a href="providers.html" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-purple-700 hover:bg-slate-50 transition-colors">渠道</a>
+                </div>
+                <div class="flex items-center gap-2">
+                    <a href="generate.html" class="hidden sm:flex items-center gap-2 px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/10">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                        <span>新创作</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" x-data="gallery()">
+        
+        <div class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <div>
+                <h1 class="text-3xl font-bold text-slate-900 tracking-tight">灵感画廊</h1>
+                <p class="text-slate-500 mt-2">浏览由 AI 构建的 <span x-text="images.length || 0" class="font-mono font-semibold text-purple-600"></span> 个精彩瞬间</p>
+            </div>
+            <div class="flex gap-2">
+                <button @click="loadImages()" class="p-2 text-slate-400 hover:text-purple-600 transition-colors" title="刷新">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="mb-8 bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start gap-3 shadow-sm">
+            <svg class="w-5 h-5 text-red-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+            <p class="text-sm font-bold text-red-700 leading-relaxed">
+                默认图床链接是各个平台的临时链接，若有保存的需求，请尽快下载，如果临时链接失效（有些平台大约在一天左右），将无法正常显示图片，后果自负！
+            </p>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+            <template x-if="loading">
+                <template x-for="i in 8">
+                    <div class="aspect-square rounded-2xl bg-slate-200 animate-pulse"></div>
+                </template>
+            </template>
+
+            <template x-for="img in images" :key="img.id">
+                <div class="group relative bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100 card-hover transition-all duration-300">
+                    <div class="aspect-square bg-slate-100 relative overflow-hidden cursor-zoom-in" @click="openLightbox(img)">
+                        <img :src="img.url" :alt="img.prompt" loading="lazy" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105">
+                        
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
+                            <p class="text-white text-xs line-clamp-2 mb-2 opacity-90" x-text="img.prompt"></p>
+                            <div class="flex gap-2 justify-end">
+                                <button @click.stop="downloadImage(img)" class="p-1.5 bg-white/20 hover:bg-white/40 backdrop-blur rounded-lg text-white transition-colors"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg></button>
+                                <button @click.stop="deleteImage(img.id)" class="p-1.5 bg-red-500/50 hover:bg-red-500/80 backdrop-blur rounded-lg text-white transition-colors"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-3 bg-white border-t border-slate-50">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] font-bold tracking-wider text-slate-400 uppercase" x-text="img.provider_type || 'AI'"></span>
+                            <span class="text-[10px] text-slate-400" x-text="formatDate(img.created_at)"></span>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <div x-show="!loading && images.length === 0" x-cloak class="text-center py-20">
+            <div class="w-20 h-20 bg-purple-50 rounded-full flex items-center justify-center mx-auto mb-4 text-purple-200">
+                <svg class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            </div>
+            <h3 class="text-lg font-medium text-slate-900">暂无作品</h3>
+            <p class="text-slate-500 mb-6 max-w-sm mx-auto">您的画廊空空如也，去创造一些令人惊叹的画面吧。</p>
+            <a href="generate.html" class="inline-flex items-center px-4 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition-colors">前往创作</a>
+        </div>
+
+        <div x-show="lightbox.show" class="fixed inset-0 z-50 flex items-center justify-center p-4" x-cloak>
+            <div class="absolute inset-0 bg-slate-900/90 backdrop-blur-sm transition-opacity" @click="lightbox.show = false"></div>
+            <div class="relative bg-white rounded-2xl shadow-2xl overflow-hidden max-w-5xl w-full max-h-[90vh] flex flex-col md:flex-row" @click.stop>
+                <div class="flex-1 bg-slate-100 flex items-center justify-center p-4 overflow-auto">
+                    <img :src="lightbox.image?.url" class="max-w-full max-h-[80vh] object-contain shadow-lg rounded-lg">
+                </div>
+                <div class="w-full md:w-80 bg-white p-6 border-l border-slate-100 flex flex-col shrink-0">
+                    <h3 class="font-bold text-slate-900 mb-4">详情信息</h3>
+                    <div class="flex-1 overflow-y-auto mb-4">
+                        <label class="text-xs font-semibold text-slate-400 uppercase block mb-1">提示词</label>
+                        <p class="text-sm text-slate-600 leading-relaxed" x-text="lightbox.image?.prompt"></p>
+                    </div>
+                    <div class="space-y-3 mt-auto">
+                        <button @click="copyUrl(lightbox.image?.url)" class="w-full py-2.5 px-4 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition-colors flex items-center justify-center gap-2">
+                           复制链接
+                        </button>
+                        <a :href="lightbox.image?.url" download target="_blank" class="w-full py-2.5 px-4 rounded-xl bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 transition-colors flex items-center justify-center gap-2">
+                           下载原图
+                        </a>
+                    </div>
+                </div>
+                <button @click="lightbox.show = false" class="absolute top-4 right-4 md:left-4 md:right-auto md:text-slate-800 text-white hover:opacity-70">
+                    <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+        </div>
+        
+        <div class="fixed bottom-6 right-6 z-50 space-y-2 pointer-events-none">
+            <template x-for="toast in toasts" :key="toast.id">
+                <div class="bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl flex items-center gap-3 animate-slide-up pointer-events-auto min-w-[300px]">
+                    <span x-text="toast.message" class="text-sm font-medium flex-1"></span>
+                </div>
+            </template>
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('gallery', () => ({
+                images: [],
+                loading: true,
+                toasts: [],
+                lightbox: { show: false, image: null },
+
+                async init() { await this.loadImages(); },
+                
+                async loadImages() {
+                    this.loading = true;
+                    try {
+                        this.images = await API.get('/api/images/?limit=50');
+                    } catch (e) { this.notify(e.message, 'error'); } 
+                    finally { this.loading = false; }
+                },
+
+                async deleteImage(id) {
+                    if (!confirm('确定删除此图片？')) return;
+                    try {
+                        await API.delete(`/api/images/${id}`);
+                        this.images = this.images.filter(i => i.id !== id);
+                        this.notify('图片已删除');
+                    } catch (e) { this.notify('删除失败', 'error'); }
+                },
+
+                openLightbox(img) { this.lightbox.image = img; this.lightbox.show = true; },
+                
+                copyUrl(url) {
+                    navigator.clipboard.writeText(url);
+                    this.notify('链接已复制');
+                },
+                
+                downloadImage(img) {
+                     const link = document.createElement('a'); link.href = img.url; link.download = img.filename; 
+                     document.body.appendChild(link); link.click(); document.body.removeChild(link);
+                },
+
+                formatDate(str) { return new Date(str).toLocaleDateString(); },
+                
+                notify(msg, type='success') {
+                    const id = Date.now();
+                    this.toasts.push({ id, message: msg, type });
+                    setTimeout(() => { this.toasts = this.toasts.filter(t => t.id !== id); }, 3000);
+                }
+            }))
+        })
+    </script>
+</body>
+</html>

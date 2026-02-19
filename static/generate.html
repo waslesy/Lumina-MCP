@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lumina Create - AI 生图</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="/static/js/api.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        // 鉴权守卫
+        if (!localStorage.getItem('lumina_master_key')) window.location.replace('login.html');
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    animation: { 'float': 'float 8s ease-in-out infinite' },
+                    keyframes: { float: { '0%, 100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-20px)' } } }
+                }
+            }
+        }
+    </script>
+    <style>
+        [x-cloak] { display: none !important; }
+        .glass { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(12px); }
+        .input-card { background: white; border-radius: 24px; border: 1px solid rgba(0,0,0,0.05); }
+        /* 自定义滚动条 */
+        .custom-scroll::-webkit-scrollbar { width: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen relative overflow-x-hidden selection:bg-purple-200 selection:text-purple-900">
+
+    <div class="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
+        <div class="absolute top-[-5%] left-[-5%] w-[40%] h-[40%] rounded-full bg-purple-100/50 blur-[100px] animate-float"></div>
+        <div class="absolute bottom-[-5%] right-[-5%] w-[40%] h-[40%] rounded-full bg-blue-100/50 blur-[100px] animate-float" style="animation-delay: 4s"></div>
+    </div>
+
+    <nav class="bg-white/80 backdrop-blur border-b border-slate-100 sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <a href="index.html" class="flex items-center gap-2 group shrink-0">
+                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center text-white shadow-lg shadow-purple-500/20">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    </div>
+                    <span class="font-bold text-xl tracking-tight text-blue-600">Lumina</span>
+                </a>
+
+                <div class="absolute left-1/2 transform -translate-x-1/2 flex items-center space-x-1 bg-slate-50/50 p-1 rounded-2xl">
+                    <a href="index.html" class="px-5 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:text-purple-700 transition">画廊</a>
+                    <a href="generate.html" class="px-5 py-2 rounded-xl text-sm font-semibold bg-purple-50 text-purple-700 shadow-sm shadow-purple-100/50">创作</a>
+                    <a href="providers.html" class="px-5 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:text-purple-700 transition">渠道</a>
+                </div>
+
+                <div class="w-10"></div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-4xl mx-auto px-4 py-12" x-data="generator()">
+        
+        <div class="input-card shadow-2xl p-8 md:p-12 relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400"></div>
+
+            <div class="text-center mb-10">
+                <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight">创作新图像</h1>
+                <p class="text-slate-500 mt-3 text-lg">输入提示词，让 AI 将你的想象力转化为现实</p>
+                
+                <div class="mt-6 mx-auto max-w-2xl bg-amber-50 border border-amber-100 rounded-xl p-4 flex items-start gap-3 text-left shadow-sm">
+                    <svg class="w-5 h-5 text-amber-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div class="text-sm text-amber-800">
+                        <p class="font-bold">使用说明</p>
+                        <p class="opacity-90 mt-0.5">此页面仅适合测试模型连通性。若需要更加专业的生图效果（如详细参数控制），请使用 MCP 客户端。</p>
+                    </div>
+                </div>
+                </div>
+
+            <div class="space-y-8">
+                <div class="space-y-3">
+                    <label class="block text-sm font-bold text-slate-700 ml-1">提示词 (Prompt)</label>
+                    <div class="relative bg-slate-50/50 border-2 border-slate-100 rounded-3xl p-5 focus-within:border-purple-400 focus-within:bg-white transition-all duration-300">
+                        <textarea x-model="prompt" rows="5" class="w-full bg-transparent text-slate-800 placeholder:text-slate-300 focus:outline-none resize-none text-lg leading-relaxed" placeholder="例如：一座漂浮在云端的赛博朋克城市，霓虹灯光，雨夜，8k分辨率..."></textarea>
+                        
+                        <div class="flex flex-wrap gap-2 mt-4">
+                            <button @click="appendTag('赛博朋克')" class="px-3 py-1.5 bg-white border border-slate-100 rounded-xl text-xs font-medium text-slate-500 hover:text-purple-600 hover:border-purple-200 transition-all shadow-sm">+ 赛博朋克</button>
+                            <button @click="appendTag('吉卜力')" class="px-3 py-1.5 bg-white border border-slate-100 rounded-xl text-xs font-medium text-slate-500 hover:text-purple-600 hover:border-purple-200 transition-all shadow-sm">+ 吉卜力</button>
+                            <button @click="appendTag('油画')" class="px-3 py-1.5 bg-white border border-slate-100 rounded-xl text-xs font-medium text-slate-500 hover:text-purple-600 hover:border-purple-200 transition-all shadow-sm">+ 油画</button>
+                            <button @click="appendTag('极简')" class="px-3 py-1.5 bg-white border border-slate-100 rounded-xl text-xs font-medium text-slate-500 hover:text-purple-600 hover:border-purple-200 transition-all shadow-sm">+ 极简</button>
+                            <span class="ml-auto text-xs font-mono text-slate-300 self-center" x-text="prompt.length + ' chars'"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="space-y-6">
+                        <div class="space-y-3">
+                            <label class="block text-sm font-bold text-slate-700 ml-1">模型渠道</label>
+                            <div class="relative">
+                                <select x-model="selectedProvider" @change="onProviderChange()" class="w-full appearance-none bg-purple-50/50 border border-purple-100 rounded-2xl px-5 py-4 focus:bg-white focus:ring-4 focus:ring-purple-500/5 focus:border-purple-400 transition-all cursor-pointer font-medium text-slate-700">
+                                    <option value="">✨ 智能自动选择</option>
+                                    <template x-for="p in providers" :key="p.id">
+                                        <option :value="p.id" x-text="p.name"></option>
+                                    </template>
+                                </select>
+                                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-5 text-purple-400"><svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-3 transition-opacity duration-300" :class="!selectedProvider ? 'opacity-50' : 'opacity-100'">
+                            <label class="block text-sm font-bold text-slate-700 ml-1">选择模型</label>
+                            <div class="relative">
+                                <select x-model="selectedModel" :disabled="!selectedProvider" class="w-full appearance-none bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 focus:bg-white focus:ring-4 focus:ring-purple-500/5 focus:border-purple-400 transition-all cursor-pointer font-medium text-slate-600 disabled:cursor-not-allowed">
+                                    <option value="">🎯 默认最佳模型</option>
+                                    <template x-for="m in availableModels" :key="m">
+                                        <option :value="m" x-text="m"></option>
+                                    </template>
+                                </select>
+                                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-5 text-slate-400"><svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div>
+                            </div>
+                            <p x-show="!selectedProvider" class="text-xs text-orange-400 ml-2 mt-1">* 请先在上方选择模型渠道</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3">
+                        <label class="block text-sm font-bold text-slate-700 ml-1">画幅比例</label>
+                        <div class="grid grid-cols-3 gap-4">
+                            <button @click="size='1024x1024'" :class="size==='1024x1024' ? 'bg-purple-600 text-white shadow-xl shadow-purple-500/30 border-transparent' : 'bg-slate-50 border-slate-100 text-slate-400 hover:bg-slate-100'" class="border rounded-3xl py-6 flex flex-col items-center justify-center gap-2 transition-all group">
+                                <div class="w-5 h-5 border-2 border-current rounded-md group-hover:scale-110 transition-transform"></div>
+                                <span class="text-xs font-bold uppercase tracking-tighter">1:1</span>
+                            </button>
+                            <button @click="size='1024x1792'" :class="size==='1024x1792' ? 'bg-purple-600 text-white shadow-xl shadow-purple-500/30 border-transparent' : 'bg-slate-50 border-slate-100 text-slate-400 hover:bg-slate-100'" class="border rounded-3xl py-6 flex flex-col items-center justify-center gap-2 transition-all group">
+                                <div class="w-4 h-6 border-2 border-current rounded-md group-hover:scale-110 transition-transform"></div>
+                                <span class="text-xs font-bold uppercase tracking-tighter">9:16</span>
+                            </button>
+                            <button @click="size='1792x1024'" :class="size==='1792x1024' ? 'bg-purple-600 text-white shadow-xl shadow-purple-500/30 border-transparent' : 'bg-slate-50 border-slate-100 text-slate-400 hover:bg-slate-100'" class="border rounded-3xl py-6 flex flex-col items-center justify-center gap-2 transition-all group">
+                                <div class="w-6 h-4 border-2 border-current rounded-md group-hover:scale-110 transition-transform"></div>
+                                <span class="text-xs font-bold uppercase tracking-tighter">16:9</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <button 
+                    @click="generate" 
+                    :disabled="generating || !prompt.trim()"
+                    class="w-full relative group overflow-hidden rounded-3xl p-6 transition-all duration-500 transform active:scale-[0.98] disabled:opacity-50 shadow-2xl shadow-purple-500/20"
+                >
+                    <div class="absolute inset-0 bg-gradient-to-r from-purple-400 to-blue-400 group-hover:scale-105 transition-transform duration-500"></div>
+                    <div class="relative flex items-center justify-center gap-3 text-white font-black text-xl tracking-wide">
+                        <span x-show="!generating">立即生成</span>
+                        <span x-show="!generating" class="text-2xl animate-pulse">✨</span>
+                        <div x-show="generating" class="flex items-center gap-3">
+                            <svg class="animate-spin h-6 w-6 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            <span>绘图中...</span>
+                        </div>
+                    </div>
+                </button>
+            </div>
+
+            <div x-show="result" x-transition.duration.500ms class="mt-12 border-t border-slate-100 pt-12" x-cloak>
+                <div class="bg-slate-50 border border-slate-100 rounded-[32px] p-8 flex flex-col md:flex-row gap-10 items-center">
+                    <div class="w-full md:w-1/2 rounded-2xl shadow-2xl overflow-hidden bg-white">
+                        <img :src="result?.url" class="w-full h-auto object-cover hover:scale-105 transition-transform duration-1000">
+                    </div>
+                    <div class="flex-1 text-center md:text-left space-y-6">
+                        <div>
+                            <h3 class="text-2xl font-black text-slate-800">生成成功！</h3>
+                            <p class="text-slate-500 mt-2">作品已存入您的私人画廊。</p>
+                        </div>
+                        <div class="flex flex-wrap justify-center md:justify-start gap-4">
+                            <a :href="result?.url" download class="px-8 py-3 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 transition shadow-lg active:scale-95">下载作品</a>
+                            <button @click="copyUrl(result?.url)" class="px-8 py-3 bg-white border border-slate-200 text-slate-600 rounded-2xl font-bold hover:bg-slate-50 transition shadow-sm active:scale-95">复制链接</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div x-show="error" x-transition class="mt-8 p-5 bg-red-50 border border-red-100 text-red-600 rounded-2xl flex items-center gap-3 font-medium" x-cloak>
+                <svg class="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <span x-text="error"></span>
+            </div>
+        </div>
+        
+        <div class="fixed bottom-10 right-10 z-50 pointer-events-none">
+            <div x-show="toast.show" x-transition class="bg-slate-900 text-white px-6 py-4 rounded-2xl shadow-2xl text-sm font-bold pointer-events-auto" x-text="toast.message" x-cloak></div>
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('generator', () => ({
+                prompt: '',
+                providers: [],
+                selectedProvider: '',
+                selectedModel: '',
+                availableModels: [],
+                size: '1024x1024',
+                generating: false,
+                result: null,
+                error: null,
+                toast: { show: false, message: '' },
+
+                async init() {
+                    try {
+                        const res = await API.get('/api/providers/');
+                        this.providers = res.filter(p => p.is_active);
+                    } catch (e) { console.error('Failed to load providers'); }
+                },
+
+                // 级联刷新模型列表
+                onProviderChange() {
+                    this.selectedModel = '';
+                    if (!this.selectedProvider) {
+                        this.availableModels = [];
+                        return;
+                    }
+                    const p = this.providers.find(x => x.id == this.selectedProvider);
+                    if (p && p.models) {
+                        try {
+                            // 兼容 JSON 字符串或数组
+                            if (typeof p.models === 'string') {
+                                this.availableModels = JSON.parse(p.models);
+                            } else {
+                                this.availableModels = p.models;
+                            }
+                        } catch (e) { this.availableModels = []; }
+                    } else {
+                        this.availableModels = [];
+                    }
+                },
+
+                appendTag(tag) {
+                    if (this.prompt && !this.prompt.endsWith(', ')) this.prompt += ', ';
+                    this.prompt += tag;
+                },
+
+                async generate() {
+                    this.generating = true; this.error = null; this.result = null;
+                    try {
+                        const data = await API.post('/api/images/generate_task', {
+                            prompt: this.prompt,
+                            provider_id: this.selectedProvider ? parseInt(this.selectedProvider) : null,
+                            model: this.selectedModel || null, // 核心：传递选中的模型
+                            size: this.size
+                        });
+                        this.result = data;
+                        this.showToast('✨ 创作完成！');
+                    } catch (e) { this.error = "生成失败: " + e.message; }
+                    finally { this.generating = false; }
+                },
+
+                copyUrl(url) { 
+                    const full = window.location.origin + url;
+                    navigator.clipboard.writeText(full); 
+                    this.showToast('✅ 链接已复制'); 
+                },
+                showToast(msg) { this.toast.message = msg; this.toast.show = true; setTimeout(() => this.toast.show = false, 3000); }
+            }))
+        })
+    </script>
+</body>
+</html>
